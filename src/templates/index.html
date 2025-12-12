@@ -15,6 +15,12 @@
     <div class="container">
         <header>
             <div class="header-left">
+                <!-- Custom Traffic Lights -->
+                <div class="traffic-lights">
+                    <div class="traffic-light close" onclick="pywebview.api.close_app()"></div>
+                    <div class="traffic-light minimize" onclick="pywebview.api.minimize_app()"></div>
+                    <div class="traffic-light maximize" onclick="pywebview.api.maximize_app()"></div>
+                </div>
                 <div class="logo">TradeSync</div>
                 <div class="status-badge" id="statusBadge">Ready</div>
             </div>
@@ -94,8 +100,12 @@
                             <input type="text" id="driveFolderId" name="drive_folder_id" required>
                         </div>
                         <div class="form-group">
-                            <label for="targetFilename">Target Filename CSV</label>
-                            <input type="text" id="targetFilename" name="target_filename" required>
+                            <label for="targetFilename">Output File Name</label>
+                            <div class="input-group">
+                                <input type="text" id="targetFilename" name="target_filename" required
+                                    placeholder="Ledger_Trade_Republic">
+                                <span class="input-suffix">.csv</span>
+                            </div>
                         </div>
                         <div class="form-group">
                             <label style="display: flex; justify-content: space-between; align-items: center;">
@@ -150,6 +160,20 @@
                                 <span class="slider round"></span>
                             </label>
                         </div>
+                    </div>
+
+                    <!-- SECTION 5: DANGER ZONE -->
+                    <div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid #ff3b30;">
+                        <h3 style="font-size: 14px; font-weight: 600; margin-bottom: 12px; color: #ff3b30;">
+                            Danger Zone</h3>
+                        <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px;">
+                            Resetting the application will delete all configuration and credentials. Use this if you
+                            want to restart the setup process.
+                        </p>
+                        <button type="button" id="resetAppBtn" class="primary-btn small"
+                            style="background-color: #ff3b30; color: white;">
+                            Reset Application
+                        </button>
                     </div>
                     <div class="modal-actions">
                         <button type="submit" class="primary-btn small">Save Changes</button>
@@ -211,19 +235,31 @@
             try {
                 const res = await fetch('/api/config');
                 const data = await res.json();
+
+                // AUTO-OPEN SETTINGS IF UNCONFIGURED
+                if (!data.drive_folder_id || data.drive_folder_id === "") {
+                    console.log("App unconfigured. Opening settings...");
+                    settingsModal.style.display = "flex";
+                    // Optional: Show a welcome alert or badge
+                    appendLog("Welcome! Please configure the application to start.");
+                }
+
                 document.getElementById('driveFolderId').value = data.drive_folder_id;
-                document.getElementById('targetFilename').value = data.target_filename;
+
+                // Strip .csv for display
+                let filename = data.target_filename || '';
+                if (filename.endsWith('.csv')) {
+                    filename = filename.slice(0, -4);
+                }
+                document.getElementById('targetFilename').value = filename;
+
                 document.getElementById('phoneNumber').value = data.phone_number || '';
                 document.getElementById('pin').value = data.pin || '';
                 document.getElementById('backupEnabled').checked = data.backup_enabled;
                 document.getElementById('backupFolderName').value = data.backup_folder_name;
                 document.getElementById('backupRetention').value = data.backup_retention;
                 document.getElementById('notificationsEnabled').checked = data.notifications_enabled;
-                // Since API doesn't explicitly return service_account_file in the root object yet, we might want to Add it to GET
-                // But wait, the API returns what ConfigModel defines? No, GET returns a dict constructed from cfg.
-                // Let's check web.py GET mapping.
-                // web.py currently returns: drive_folder_id, target_filename, backup_*, notif_*
-                // It does NOT return service_account_file. I need to update web.py GET to return it.
+
                 if (data.credentials_file) {
                     document.getElementById('currentCredsFile').value = data.credentials_file;
                 }
@@ -234,9 +270,16 @@
 
         settingsForm.onsubmit = async (e) => {
             e.preventDefault();
+
+            // Append .csv for saving
+            let rawFilename = document.getElementById('targetFilename').value.trim();
+            if (!rawFilename.endsWith('.csv') && rawFilename.length > 0) {
+                rawFilename += '.csv';
+            }
+
             const payload = {
                 drive_folder_id: document.getElementById('driveFolderId').value,
-                target_filename: document.getElementById('targetFilename').value,
+                target_filename: rawFilename,
                 phone_number: document.getElementById('phoneNumber').value,
                 pin: document.getElementById('pin').value,
                 backup_enabled: document.getElementById('backupEnabled').checked,
@@ -476,6 +519,28 @@
                 sendInput();
             }
         });
+
+        // Reset Button Logic
+        document.getElementById('resetAppBtn').onclick = async () => {
+            if (confirm("Are you sure you want to reset the application? This will delete all settings and credentials.")) {
+                try {
+                    const res = await fetch('/api/reset', { method: 'POST' });
+                    const data = await res.json();
+                    if (data.status === 'success') {
+                        alert("Application reset successfully. The app will now close or require restart.");
+                        // Ideally restart, but for now we reload or close
+                        window.location.reload();
+                    } else {
+                        alert("Error resetting: " + data.message);
+                    }
+                } catch (e) {
+                    alert("Error invoking reset API: " + e);
+                }
+            }
+        }
+
+        // Initial Fetch
+        fetchConfig();
     </script>
 </body>
 

@@ -53,13 +53,12 @@ def main() -> None:
             return
 
         config = config_manager.load_config()
-        if not config:
-            console.print("[bold red]❌ Configuration not found![/bold red]")
-            config_manager.run_wizard()
-            config = config_manager.load_config()
-            if not config:
-                console.print("[bold red]❌ Configuration failed. Exiting.[/bold red]")
-                return
+        
+        # Check if config is missing or "unconfigured" (empty folder_id)
+        # In Worker Mode (GUI), we DO NOT run the wizard here. The UI handles it.
+        if not config or not config.get('drive', {}).get('folder_id'):
+            console.print("CONFIG_MISSING: Please configure settings in the UI.")
+            return
 
         # Load secrets
         load_dotenv(os.path.join(config_dir, '.env'))
@@ -70,6 +69,11 @@ def main() -> None:
         creds_file = config['drive'].get('credentials_file') or config['drive'].get('service_account_file')
         if not os.path.isabs(creds_file):
             creds_file = os.path.join(config_dir, creds_file)
+
+        # CRITICAL: Verify credentials exist physically
+        if not os.path.exists(creds_file):
+             console.print(f"CREDENTIALS_MISSING: File not found at {creds_file}")
+             return
 
         # NOTE: Drive Client initialization triggers Auth flow which might require user interaction (browser).
         # We suspend spinner for this.

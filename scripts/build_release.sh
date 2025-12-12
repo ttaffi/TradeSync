@@ -24,8 +24,9 @@ ICON_FILE="$STATIC_DIR/TradeSync.icns"
 # Ensure we are in the root directory for PyInstaller
 cd "$ROOT_DIR"
 
-# 1. Clean previous builds
-echo "🧹 Cleaning previous builds..."
+# 1. Clean previous builds and mounts
+echo "🧹 Cleaning previous builds and mounts..."
+hdiutil info | grep "/Volumes/$VOL_NAME" | cut -f1 | xargs -I {} hdiutil detach {} -force 2>/dev/null
 rm -rf "$DIST_DIR" "$BUILD_DIR"
 
 # 2. Build the Application

@@ -47,9 +47,7 @@ def main():
     t = threading.Thread(target=run_server, args=(port,), daemon=True)
     t.start()
     
-    # Start server in background thread
-    t = threading.Thread(target=run_server, args=(port,), daemon=True)
-    t.start()
+
     
     # NO SLEEP here! We want the window instantly.
     # The polling loop handles the wait.
@@ -67,7 +65,7 @@ def main():
     <style>
         :root { --bg-color: #f5f5f7; --card-bg: #ffffff; --text-primary: #1d1d1f; --text-secondary: #86868b; --font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
         body { background-color: var(--bg-color); color: var(--text-primary); font-family: var(--font-family); height: 100vh; display: flex; justify-content: center; align-items: center; margin: 0; }
-        .container { width: 100%; max-width: 600px; padding: 20px; }
+        .container { width: 100%; max-width: 600px; padding: 20px; padding-top: 50px; }
         header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
         .header-left { display: flex; align-items: center; gap: 16px; }
         .logo { font-weight: 600; font-size: 24px; letter-spacing: -0.5px; color: #000; }
@@ -101,12 +99,14 @@ def main():
 
     from src import __version__
     window = webview.create_window(
-        f'TradeSync v{__version__}', 
+        '', # Empty title to prevent macOS title bar artifacts in fullscreen
         html=LOADING_HTML, # Load this immediately
         width=1000,
         height=700,
         min_size=(800, 600),
         resizable=True,
+        frameless=True,    # Start with standard frameless (Borderless)
+        easy_drag=False,   # Disable pywebview drag handler
         js_api=JsApi()
     )
     
@@ -138,7 +138,60 @@ def main():
     # We launch the poller in a standard thread instead of 'func' to avoid any start-up blocking
     t_poller = threading.Thread(target=wait_for_server, daemon=True)
     t_poller.start()
-    
+
+    # ---------------------------------------------------------
+    # CRITICAL FIX FOR MACOS FULLSCREEN GREY BAR ARTIFACT
+    # STRATEGY: Hybrid "Modern Frameless"
+    # 1. Start Borderless (frameless=True)
+    # 2. Add 'Titled' mask but keep it hidden (required for FullSizeContentView)
+    # ---------------------------------------------------------
+    if sys.platform == 'darwin':
+        try:
+            from Foundation import dispatch_async, dispatch_get_main_queue
+            import AppKit
+
+            def fix_window_style():
+                # This runs ON THE MAIN THREAD via dispatch_async
+                try:
+                    app = AppKit.NSApplication.sharedApplication()
+                    for window in app.windows():
+                        # 1. Get current mask (Borderless)
+                        old_mask = window.styleMask()
+                        
+                        # 2. Force "Modern Frameless" combination:
+                        # We ADD 'Titled' (1<<0) and 'FullSizeContentView' (1<<15)
+                        # Titled is required for the transparency/fullscreen logic to work,
+                        # even if we hide it immediately after.
+                        new_mask = old_mask | (1 << 0) | (1 << 15)
+                        window.setStyleMask_(new_mask)
+
+                        # 3. Transparent & Hidden Title Bar
+                        window.setTitlebarAppearsTransparent_(True)
+                        window.setTitleVisibility_(1) # NSWindowTitleHidden = 1
+                        
+                        # 4. Hide Native Buttons (we have custom ones)
+                        window.standardWindowButton_(0).setHidden_(True) # Close
+                        window.standardWindowButton_(1).setHidden_(True) # Minimize
+                        window.standardWindowButton_(2).setHidden_(True) # Zoom
+                        
+                        # 5. Remove Toolbar
+                        window.setToolbar_(None)
+                        
+                except Exception as e:
+                    print(f"Style Fix Error: {e}")
+
+            def start_fix_thread():
+                # Wait for window to be created by the loop
+                time.sleep(0.5) 
+                # Dispatch the fix to the Main UI Thread
+                dispatch_async(dispatch_get_main_queue(), fix_window_style)
+
+            # Start the background waiter that will dispatch the fix
+            threading.Thread(target=start_fix_thread, daemon=True).start()
+
+        except ImportError:
+            print("Could not import AppKit/Foundation for styling fix.")
+
     webview.start(debug=False)
     
     # Cleanup
@@ -237,8 +290,23 @@ class JsApi:
             else:
                 return {"status": "cancel"}
                 
+
         except Exception as e:
             return {"status": "error", "message": str(e)}
+
+    def close_app(self):
+        """Close the application."""
+        webview.windows[0].destroy()
+    
+    def minimize_app(self):
+        """Minimize the window."""
+        webview.windows[0].minimize()
+    
+    def maximize_app(self):
+        """Toggle maximize/restore."""
+        window = webview.windows[0]
+        # toggling fullscreen is the closest native-like behavior for maximize in this context
+        window.toggle_fullscreen()
 
 if __name__ == "__main__":
     main()

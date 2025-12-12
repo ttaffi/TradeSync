@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2025-12-12
+
+### Added
+- **Frameless Window Design**: Implemented a modern, title-bar-less interface for a cleaner look. Traffic light controls now float seamlessly on the app background.
+- **Factory Reset**: precise "Danger Zone" in settings allows users to fully reset configuration and credentials to a fresh state.
+- **Unified Settings UI**: Improved "Output File Name" input with a visual fixed `.csv` suffix for better user clarity.
+- **Default Sanitization**: Ensured that the application ships with completely empty/neutral configuration defaults, preventing dev-data leaks.
+- **UI UX Polish**: Fixed fullscreen artifacts (grey bar) and refined traffic light controls for a native-like experience.
+
 ## [0.2.0] - 2025-12-12
 
 ### Added

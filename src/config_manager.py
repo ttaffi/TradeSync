@@ -104,22 +104,56 @@ class ConfigManager:
 
         # Google Drive Config
         print("\033[1;33m--- Google Drive Configuration ---\033[0m")
+        print("To connect to Google Drive, we need your 'credentials.json' file (Service Account or OAuth Client).")
+        print("If you haven't created one, please do so in the Google Cloud Console.\n")
+
+        # 1. Credentials File
+        while True:
+            target_creds_path = os.path.join(self.config_dir, 'credentials.json')
+            
+            # Check if one already exists in config dir
+            if os.path.exists(target_creds_path):
+                use_existing = inquirer.confirm(
+                    message=f"Found existing 'credentials.json' in {self.config_dir}. Use it?",
+                    default=True
+                ).execute()
+                if use_existing:
+                    break
+            
+            # Ask user to locate it
+            src_creds_path = inquirer.filepath(
+                message="Select your 'credentials.json' file:",
+                default=os.getcwd(), # Start in current dir
+                validate=lambda path: os.path.isfile(path) and path.endswith('.json'),
+                only_files=True
+            ).execute()
+
+            if src_creds_path:
+                try:
+                    # Copy to config dir
+                    import shutil
+                    shutil.copy2(src_creds_path, target_creds_path)
+                    print(f"✔ Copied credentials to {target_creds_path}")
+                    break
+                except Exception as e:
+                    print(f"❌ Failed to copy file: {e}. Please try again.")
+            else:
+                 # User cancelled or empty?
+                 print("You must provide a credentials file to proceed.")
+
+        # 2. Folder ID
         folder_id = inquirer.text(
             message="Enter your Google Drive Folder ID:",
-            default=current_drive.get('folder_id', ''),
-            instruction="(The ID from the URL of your Drive folder)"
+            instruction="(The alphanumeric ID in your Drive folder URL)",
+            validate=lambda x: len(x.strip()) > 5, # Basic validation
+            invalid_message="ID seems too short",
         ).execute()
 
-        credentials_path = inquirer.filepath(
-            message="Select your OAuth Client ID JSON file:",
-            default=current_drive.get('credentials_file', 'credentials.json'),
-            validate=lambda path: os.path.isfile(path) and path.endswith('.json'),
-            only_files=True
-        ).execute()
-
+        # 3. Target Filename
         target_file = inquirer.text(
             message="Name of the master CSV file on Drive:",
-            default=current_drive.get('target_filename', 'Trade_Republic_Transactions.csv')
+            default='Ledger_Trade_Republic.csv',
+            instruction="(This file will be created if it doesn't exist)"
         ).execute()
 
         # Backup Config
@@ -149,7 +183,7 @@ class ConfigManager:
             'drive': {
                 'folder_id': folder_id.strip(),
                 'target_filename': target_file.strip(),
-                'credentials_file': credentials_path.strip()
+                'credentials_file': 'credentials.json'
             },
             'backup': {
                 'enabled': enable_backup,

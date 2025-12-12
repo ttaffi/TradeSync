@@ -1,0 +1,42 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install Dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pyinstaller
+          # CRITICAL: Tool needed for DMG creation (requested in prompt)
+          brew install create-dmg
+
+      - name: Create Dummy Credentials
+        run: |
+          mkdir -p config
+          echo "{}" > config/client_secret.json
+
+      - name: Build App & DMG
+        run: |
+          chmod +x scripts/build_release.sh
+          ./scripts/build_release.sh
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: dist/TradeSync_Installer.dmg
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -3,8 +3,8 @@ backup:
   folder_name: backup
   retention_count: 10
 drive:
-  folder_id: 1M5MuBTvuQ2FTsu7CJb6HVUc0ERUpeWMh
+  folder_id: ""
   service_account_file: credentials.json
-  target_filename: Ledger_Trade_Republic.csv
+  target_filename: ""
 notifications:
   macos_enabled: true

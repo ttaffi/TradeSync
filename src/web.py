@@ -115,6 +115,28 @@ async def upload_credentials(file: UploadFile = File(...)):
         logger.error(f"Failed to upload credentials: {e}")
         return {"status": "error", "message": str(e)}
 
+@app.post("/api/reset")
+async def reset_config():
+    """
+    Resets the application configuration to factory defaults.
+    Deletes config.yaml, .env, and token.pickle.
+    """
+    try:
+        files_to_delete = ['config.yaml', '.env', 'token.pickle']
+        for fname in files_to_delete:
+            fpath = os.path.join(config_manager.config_dir, fname)
+            if os.path.exists(fpath):
+                os.remove(fpath)
+        
+        # Restore default structure if needed, or just leave it empty to trigger "First Run"
+        # ConfigManager._ensure_defaults() will run on next load if we initialized it, 
+        # but here we just want to wipe it.
+        
+        return {"status": "success", "message": "Configuration reset."}
+    except Exception as e:
+        logger.error(f"Reset failed: {e}")
+        return {"status": "error", "message": str(e)}
+
 @app.get("/")
 async def get(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
