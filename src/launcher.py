@@ -99,8 +99,9 @@ def main():
     </html>
     """
 
+    from src import __version__
     window = webview.create_window(
-        'TradeSync', 
+        f'TradeSync v{__version__}', 
         html=LOADING_HTML, # Load this immediately
         width=1000,
         height=700,

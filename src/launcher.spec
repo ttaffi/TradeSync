@@ -90,4 +90,5 @@ app = BUNDLE(
     name='TradeSync.app',
     icon='static/TradeSync.icns',
     bundle_identifier='com.tommasotaffi.tradesync',
+    version='0.2.0',
 )
