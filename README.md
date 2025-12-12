@@ -4,7 +4,7 @@
 
 It handles duplicates smartly, creates backups, and provides a simple user interface to manage the sync process, including 2FA handling.
 
-![TradeSync Logo](logo.png)
+<img src="logo.png" alt="TradeSync Logo" width="150"/>
 
 ## Features
 
