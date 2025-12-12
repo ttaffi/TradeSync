@@ -1,0 +1,17 @@
+# TradeSync Configuration
+
+# Google Drive Settings
+drive:
+  folder_id: "YOUR_DRIVE_FOLDER_ID" # The ID of the Google Drive folder where files are stored
+  target_filename: "Trade_Republic_Transactions.csv" # The name of the master file on Drive
+  credentials_file: "credentials.json" # Path to your OAuth 2.0 Client ID JSON file
+
+# Backup Settings
+backup:
+  enabled: true
+  retention_count: 10 # Number of backup files to keep
+  folder_name: "backups" # Subfolder name in Drive for backups (optional, script can just upload with prefix)
+
+# Notification Settings
+notifications:
+  macos_enabled: true # Enable native macOS desktop notifications

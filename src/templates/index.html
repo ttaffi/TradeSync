@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TradeSync</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <div class="header-left">
+                <div class="logo">TradeSync</div>
+                <div class="status-badge" id="statusBadge">Ready</div>
+            </div>
+            <div class="header-controls">
+                <button id="settingsBtn" class="icon-btn">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="3"></circle>
+                        <path
+                            d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z">
+                        </path>
+                    </svg>
+                </button>
+            </div>
+        </header>
+
+        <main>
+            <div class="card">
+                <div class="console-header">
+                    <span>Sync Activity</span>
+                </div>
+                <div class="console-output" id="consoleOutput">
+                    <div class="log-line info">Ready to sync. Click the button below to start.</div>
+                </div>
+
+                <div class="input-area">
+                    <input type="text" id="consoleInput" placeholder="Type here (e.g. 2FA code)..." disabled>
+                    <button id="sendBtn" disabled>Send</button>
+                </div>
+            </div>
+
+            <div class="actions">
+                <button id="syncBtn" class="primary-btn">Sync Now</button>
+            </div>
+        </main>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Settings</h2>
+                <span id="closeSettings" class="close">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="settingsForm">
+                    <!-- SECTION 1: TR CREENTIALS (SOURCE) -->
+                    <div style="margin-bottom: 24px;">
+                        <h3
+                            style="font-size: 14px; font-weight: 600; margin-bottom: 12px; color: var(--text-primary); border-bottom: 1px solid var(--border-color); padding-bottom: 8px;">
+                            1. Trade Republic Login (Optional)</h3>
+                        <div class="form-group">
+                            <label for="phoneNumber">Phone Number (e.g., +39...)</label>
+                            <input type="text" id="phoneNumber" name="phone_number" placeholder="+39 333 1234567">
+                        </div>
+                        <div class="form-group">
+                            <label for="pin">PIN</label>
+                            <input type="password" id="pin" name="pin" placeholder="Enter 4-digit PIN">
+                        </div>
+                    </div>
+
+                    <!-- SECTION 2: GOOGLE DRIVE (DESTINATION) -->
+                    <div style="margin-bottom: 24px;">
+                        <h3
+                            style="font-size: 14px; font-weight: 600; margin-bottom: 12px; color: var(--text-primary); border-bottom: 1px solid var(--border-color); padding-bottom: 8px;">
+                            2. Google Drive Destination</h3>
+                        <div class="form-group">
+                            <label for="driveFolderId"
+                                style="display: flex; justify-content: space-between; align-items: center;">
+                                Folder ID
+                                <span id="driveHelpBtn" class="help-icon" title="How to find this?">?</span>
+                            </label>
+                            <div id="driveHelpText" class="help-text" style="display: none;">
+                                Open your folder in Google Drive. The ID is the last part of the URL:<br>
+                                <code>drive.google.com/drive/folders/<b>YOUR_ID_HERE</b></code>
+                            </div>
+                            <input type="text" id="driveFolderId" name="drive_folder_id" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="targetFilename">Target Filename CSV</label>
+                            <input type="text" id="targetFilename" name="target_filename" required>
+                        </div>
+                        <div class="form-group">
+                            <label style="display: flex; justify-content: space-between; align-items: center;">
+                                OAuth Client ID (Required)
+                                <span id="oauthHelpBtn" class="help-icon" title="Where to get this?">?</span>
+                            </label>
+                            <div id="oauthHelpText" class="help-text" style="display: none;">
+                                Get this from Google Cloud Console:<br>
+                                APIs &amp; Services &gt; Credentials &gt; OAuth 2.0 Client IDs.<br>
+                                File must be JSON type.
+                            </div>
+                            <div style="display: flex; gap: 8px;">
+                                <input type="text" id="currentCredsFile" disabled placeholder="client_secret.json">
+                                <button type="button" id="uploadCredsBtn" class="primary-btn small"
+                                    style="padding: 0 16px;">Change</button>
+                            </div>
+                            <input type="file" id="credsFileInput" accept=".json" style="display: none;">
+                        </div>
+                    </div>
+
+                    <!-- SECTION 3: BACKUP -->
+                    <div style="margin-bottom: 24px;">
+                        <h3
+                            style="font-size: 14px; font-weight: 600; margin-bottom: 12px; color: var(--text-primary); border-bottom: 1px solid var(--border-color); padding-bottom: 8px;">
+                            3. Backups</h3>
+                        <div class="form-group row">
+                            <label for="backupEnabled">Enable Automatic Backups</label>
+                            <label class="switch">
+                                <input type="checkbox" id="backupEnabled" name="backup_enabled">
+                                <span class="slider round"></span>
+                            </label>
+                        </div>
+                        <div class="form-group">
+                            <label for="backupFolderName">Backup Folder Name</label>
+                            <input type="text" id="backupFolderName" name="backup_folder_name">
+                        </div>
+                        <div class="form-group">
+                            <label for="backupRetention">Retention Count</label>
+                            <input type="number" id="backupRetention" name="backup_retention" min="1" max="50">
+                        </div>
+                    </div>
+
+                    <!-- SECTION 4: SYSTEM -->
+                    <div style="margin-bottom: 0px;">
+                        <h3
+                            style="font-size: 14px; font-weight: 600; margin-bottom: 12px; color: var(--text-primary); border-bottom: 1px solid var(--border-color); padding-bottom: 8px;">
+                            4. System</h3>
+                        <div class="form-group row">
+                            <label for="notificationsEnabled">MacOS Notifications</label>
+                            <label class="switch">
+                                <input type="checkbox" id="notificationsEnabled" name="notifications_enabled">
+                                <span class="slider round"></span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="modal-actions">
+                        <button type="submit" class="primary-btn small">Save Changes</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const consoleOutput = document.getElementById('consoleOutput');
+        const consoleInput = document.getElementById('consoleInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const syncBtn = document.getElementById('syncBtn');
+        const statusBadge = document.getElementById('statusBadge');
+
+        // Settings UI
+        const settingsBtn = document.getElementById('settingsBtn');
+        const settingsModal = document.getElementById('settingsModal');
+        const closeSettings = document.getElementById('closeSettings');
+        const settingsForm = document.getElementById('settingsForm');
+
+        // Help Toggle
+        const driveHelpBtn = document.getElementById('driveHelpBtn');
+        const driveHelpText = document.getElementById('driveHelpText');
+
+        driveHelpBtn.onclick = (e) => {
+            e.preventDefault(); // Prevent form label click propagation
+            driveHelpText.style.display = driveHelpText.style.display === 'none' ? 'block' : 'none';
+        }
+
+        const oauthHelpBtn = document.getElementById('oauthHelpBtn');
+        const oauthHelpText = document.getElementById('oauthHelpText');
+
+        oauthHelpBtn.onclick = (e) => {
+            e.preventDefault();
+            oauthHelpText.style.display = oauthHelpText.style.display === 'none' ? 'block' : 'none';
+        }
+
+        let ws = null;
+
+        // --- Settings Logic ---
+        settingsBtn.onclick = () => {
+            fetchConfig();
+            settingsModal.style.display = "flex"; // Flex for centering
+        }
+
+        closeSettings.onclick = () => {
+            settingsModal.style.display = "none";
+        }
+
+        window.onclick = (event) => {
+            if (event.target == settingsModal) {
+                settingsModal.style.display = "none";
+            }
+        }
+
+        async function fetchConfig() {
+            try {
+                const res = await fetch('/api/config');
+                const data = await res.json();
+                document.getElementById('driveFolderId').value = data.drive_folder_id;
+                document.getElementById('targetFilename').value = data.target_filename;
+                document.getElementById('phoneNumber').value = data.phone_number || '';
+                document.getElementById('pin').value = data.pin || '';
+                document.getElementById('backupEnabled').checked = data.backup_enabled;
+                document.getElementById('backupFolderName').value = data.backup_folder_name;
+                document.getElementById('backupRetention').value = data.backup_retention;
+                document.getElementById('notificationsEnabled').checked = data.notifications_enabled;
+                // Since API doesn't explicitly return service_account_file in the root object yet, we might want to Add it to GET
+                // But wait, the API returns what ConfigModel defines? No, GET returns a dict constructed from cfg.
+                // Let's check web.py GET mapping.
+                // web.py currently returns: drive_folder_id, target_filename, backup_*, notif_*
+                // It does NOT return service_account_file. I need to update web.py GET to return it.
+                if (data.credentials_file) {
+                    document.getElementById('currentCredsFile').value = data.credentials_file;
+                }
+            } catch (e) {
+                console.error("Failed to load config", e);
+            }
+        }
+
+        settingsForm.onsubmit = async (e) => {
+            e.preventDefault();
+            const payload = {
+                drive_folder_id: document.getElementById('driveFolderId').value,
+                target_filename: document.getElementById('targetFilename').value,
+                phone_number: document.getElementById('phoneNumber').value,
+                pin: document.getElementById('pin').value,
+                backup_enabled: document.getElementById('backupEnabled').checked,
+                backup_folder_name: document.getElementById('backupFolderName').value,
+                backup_retention: parseInt(document.getElementById('backupRetention').value),
+                notifications_enabled: document.getElementById('notificationsEnabled').checked
+            };
+
+            try {
+                const res = await fetch('/api/config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (res.ok) {
+                    settingsModal.style.display = "none";
+                    appendLog("Configuration saved successfully.");
+                } else {
+                    appendLog("Error saving configuration.");
+                }
+            } catch (e) {
+                console.error("Failed to save config", e);
+            }
+        }
+
+        // --- Console Logic ---
+
+        let buffer = '';
+
+        function appendLog(text) {
+            // 1. Append new text to buffer
+            buffer += text;
+
+            // 2. Process complete lines or carriage returns
+            // We look for \n or \r to decide when to flush
+            while (true) {
+                // Find first occurrence of \n or \r
+                const match = buffer.match(/[\r\n]/);
+                if (!match) break; // No more delimiters, wait for more data
+
+                const index = match.index;
+                const char = match[0];
+
+                // Extract the segment [0...index]
+                let segment = buffer.substring(0, index);
+
+                // Strip ANSI codes from this segment
+                segment = segment.replace(/\u001b\[[\d;?]*[a-zA-Z]/g, '');
+
+                // Advance buffer past this character
+                buffer = buffer.substring(index + 1);
+
+                // Handle Output
+                if (char === '\r') {
+                    // Update the last line if it exists, otherwise create it
+                    let lastLine = consoleOutput.lastElementChild;
+                    if (!lastLine) {
+                        const div = document.createElement('div');
+                        div.className = 'log-line';
+                        consoleOutput.appendChild(div);
+                        lastLine = div;
+                    }
+                    // Only update if segment has content (optimization)
+                    // Actually, \r usually comes AFTER content: "Text\r"
+                    // So we encountered "Text", then \r.
+                    // Wait, standard terminal behavior:
+                    // "Loading..." -> Buffer has "Loading..."
+                    // Next char \r -> Move cursor to start.
+                    // Next chars overwrite.
+
+                    // Simplification for Web UI: 
+                    // \r means "The PREVIOUS content on this line is obsolete".
+                    // But we just parsed "segment" BEFORE \r.
+                    // So "segment" IS the content to show/overwrite.
+
+                    if (segment.length > 0) {
+                        lastLine.textContent = segment;
+                    }
+                } else if (char === '\n') {
+                    // Newline: ensure the current segment is printed, then seal it.
+                    let lastLine = consoleOutput.lastElementChild;
+                    if (!lastLine) {
+                        const div = document.createElement('div');
+                        div.className = 'log-line';
+                        consoleOutput.appendChild(div);
+                        lastLine = div;
+                    }
+
+                    // If we have content preceding the \n, update the last line one final time
+                    if (segment.length > 0) {
+                        lastLine.textContent = segment;
+                    }
+
+                    // Create a NEW line for subsequent content
+                    const newLine = document.createElement('div');
+                    newLine.className = 'log-line';
+                    consoleOutput.appendChild(newLine);
+                }
+            }
+
+            // Auto-scroll
+            consoleOutput.scrollTop = consoleOutput.scrollHeight;
+        }
+
+        let hasError = false;
+
+        function updateBadge(state) {
+            statusBadge.className = 'status-badge'; // Reset
+            if (state === 'running') {
+                statusBadge.textContent = 'Running';
+                statusBadge.classList.add('running');
+            } else if (state === 'error') {
+                statusBadge.textContent = 'Error';
+                statusBadge.classList.add('error');
+            } else {
+                statusBadge.textContent = 'Ready';
+                statusBadge.classList.add('ready');
+            }
+        }
+
+        // Initial State
+        updateBadge('ready');
+
+        function connect() {
+            // Disable sync button while running
+            syncBtn.disabled = true;
+            syncBtn.textContent = "Syncing...";
+            updateBadge('running');
+
+            hasError = false; // Reset error flag
+
+            consoleOutput.innerHTML = ''; // Clear previous logs
+            appendLog("Initializing connection...");
+
+            // Use relative URL to support both localhost and potential future deployments
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws/sync`;
+
+            ws = new WebSocket(wsUrl);
+
+            ws.onopen = () => {
+                appendLog("Connected to backend.");
+                // Enable input
+                consoleInput.disabled = false;
+                sendBtn.disabled = false;
+                consoleInput.focus();
+            };
+
+            ws.onmessage = (event) => {
+                const txt = event.data;
+                // Heuristic for error detection
+                if (txt && (txt.toLowerCase().includes('error') || txt.toLowerCase().includes('failed') || txt.toLowerCase().includes('exception'))) {
+                    // Ignore common non-fatal "errors" if any? 
+                    // For now, strict: any mention of error flags it.
+                    hasError = true;
+                }
+                appendLog(txt);
+            };
+
+            ws.onclose = () => {
+                appendLog("Connection closed.");
+                syncBtn.disabled = false;
+                syncBtn.textContent = "Sync Now";
+                consoleInput.disabled = true;
+                sendBtn.disabled = true;
+
+                if (hasError) {
+                    updateBadge('error');
+                } else {
+                    updateBadge('ready');
+                }
+                ws = null;
+            };
+
+            ws.onerror = (error) => {
+                console.error("WebSocket error:", error);
+                hasError = true;
+                appendLog("Error: Connection failure.");
+            };
+        }
+
+        uploadCredsBtn.onclick = async () => {
+            console.log("Change button clicked");
+            // Check if running inside pywebview with native API check
+            if (window.pywebview && window.pywebview.api) {
+                console.log("Using Native API");
+                // Native "Apple style" finder dialog
+                uploadCredsBtn.textContent = "Selecting...";
+                uploadCredsBtn.disabled = true;
+
+                try {
+                    const res = await window.pywebview.api.import_credentials();
+                    console.log("Native API Result:", res);
+                    if (res.status === 'success') {
+                        currentCredsFile.value = res.filename;
+
+                        const msg = `✅ OAuth Client Verified.\n\nType: ${res.identifier}\n\nYou will be asked to log in via browser on next sync.`;
+
+                        appendLog(msg.replace('\n', ' '));
+                        alert(msg);
+                    } else if (res.status === 'cancel') {
+                        console.log("Cancelled");
+                        // User cancelled
+                    } else {
+                        appendLog(`Error importing credentials: ${res.message}`);
+                        alert("Error: " + res.message); // Show alert to user
+                    }
+                } catch (e) {
+                    console.error(e);
+                    alert("Native API Error: " + e);
+                    appendLog("Error invoking native dialog.");
+                } finally {
+                    uploadCredsBtn.textContent = "Change";
+                    uploadCredsBtn.disabled = false;
+                }
+            } else {
+                console.log("Fallback to legacy input");
+                // Fallback for browser testing or if bridge failed
+                credsFileInput.click();
+            }
+        }
+
+        function sendInput() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                const text = consoleInput.value;
+                ws.send(text + '\n'); // Send with newline
+                consoleInput.value = '';
+            }
+        }
+
+        syncBtn.addEventListener('click', connect);
+
+        sendBtn.addEventListener('click', sendInput);
+
+        consoleInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                sendInput();
+            }
+        });
+    </script>
+</body>
+
+</html>

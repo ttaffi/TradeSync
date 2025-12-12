@@ -1,0 +1,10 @@
+backup:
+  enabled: true
+  folder_name: backup
+  retention_count: 10
+drive:
+  folder_id: 1M5MuBTvuQ2FTsu7CJb6HVUc0ERUpeWMh
+  service_account_file: credentials.json
+  target_filename: Ledger_Trade_Republic.csv
+notifications:
+  macos_enabled: true

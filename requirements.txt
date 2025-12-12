@@ -1,0 +1,16 @@
+fastapi
+uvicorn
+jinja2
+python-multipart
+websockets
+pywebview
+pandas
+google-api-python-client
+google-auth-httplib2
+google-auth-oauthlib
+pytr
+inquirerpy
+prompt_toolkit
+wcwidth
+rich
+tenacity

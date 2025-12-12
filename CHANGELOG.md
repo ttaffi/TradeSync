@@ -5,28 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.0] - 2025-01-15
+## [1.0.0] - 2025-12-12
 
 ### Added
-- Initial release of Trade Republic Transaction Exporter
-- Interactive setup mode for first-run configuration
-- Configuration file (`config.json`) for persistent settings
-- Automatic CSV export using `pytr` via `uv`
-- Incremental CSV updates (appends only new transactions)
-- Automatic backup creation before each update
-- Git integration with automatic commit and push
-- Robust transaction detection using full row comparison
-- Comprehensive error handling and user feedback
-- Support for configurable paths, commands, and Git branches
-- README documentation with setup and usage instructions
-- Configuration example file (`config.example.json`)
-- Strict CSV format compliance (semicolon delimiter, UTF-8 encoding)
+- **MacOS Desktop App**: Released `TradeSync.app`, a standalone executable for macOS. No Python installation required for end users.
+- **Web Frontend**: A dedicated local web interface (running inside the app) for managing syncs, viewing logs, and handling 2FA interactions user-friendliness.
+- **Direct API Integration**: Refactored `pytr` integration to use library classes directly, improving reliability and error handling for transaction exports.
+- **Resilient Parsing**: Added logic to skip and log individual malformed transaction events instead of failing the entire export.
 
-### Features
-- **Setup Mode**: Interactive configuration wizard on first run
-- **Incremental Updates**: Preserves existing CSV rows, only appends new transactions
-- **Backup System**: Timestamped backups stored in Git-tracked directory
-- **Git Automation**: Automatic commit and push of changes
-- **Error Handling**: Clear error messages and graceful failure handling
-- **Reusability**: Fully configurable for different users and environments
-- **CSV Format Compliance**: Strictly respects Trade Republic CSV format specifications
+## [0.1.0] - 2025-12-11
+
+### Added
+- Initial release of TradeSync core logic.
+- Google Drive integration (download, upload, update, search).
+- Trade Republic export automation via `pytr`.
+- Smart deduplication logic using row hashing.
+- Backup rotation and management.
+- Native macOS notifications.
+- Configuration system using YAML and .env.

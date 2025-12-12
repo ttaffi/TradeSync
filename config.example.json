@@ -1,7 +1,0 @@
-{
-  "target_repo_path": "/Users/myuser/projects/trade-republic-transactions-data",
-  "csv_master_path": "account_transactions.csv",
-  "backup_dir_name": "backups",
-  "git_branch": "main",
-  "pytr_cmd": "uvx pytr@latest export_transactions"
-}
