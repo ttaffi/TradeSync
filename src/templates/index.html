@@ -12,14 +12,15 @@
 </head>
 
 <body>
+    <div class="pywebview-drag-region"></div>
     <div class="container">
         <header>
             <div class="header-left">
                 <!-- Custom Traffic Lights -->
                 <div class="traffic-lights">
-                    <div class="traffic-light close" onclick="pywebview.api.close_app()"></div>
-                    <div class="traffic-light minimize" onclick="pywebview.api.minimize_app()"></div>
-                    <div class="traffic-light maximize" onclick="pywebview.api.maximize_app()"></div>
+                    <button class="traffic-light close" onclick="pywebview.api.close_app()"></button>
+                    <button class="traffic-light minimize" onclick="pywebview.api.minimize_app()"></button>
+                    <button class="traffic-light maximize" onclick="pywebview.api.maximize_app()"></button>
                 </div>
                 <div class="logo">TradeSync</div>
                 <div class="status-badge" id="statusBadge">Ready</div>

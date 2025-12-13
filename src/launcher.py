@@ -73,9 +73,20 @@ def main():
         .card { background-color: var(--card-bg); border-radius: 18px; border: 1px solid rgba(0, 0, 0, 0.05); overflow: hidden; margin-bottom: 24px; box-shadow: 0 4px 24px rgba(0, 0, 0, 0.04); height: 400px; display: flex; align-items: center; justify-content: center;}
         .actions { display: flex; justify-content: center; }
         .primary-btn { background-color: #000000; color: white; font-size: 15px; font-weight: 600; padding: 12px 36px; border-radius: 30px; border: none; opacity: 0.5; cursor: default; }
+
+        /* Specific Drag Region for pywebview */
+        .pywebview-drag-region {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 40px; /* ~1cm drag area */
+            z-index: 900;
+        }
     </style>
     </head>
     <body>
+        <div class="pywebview-drag-region"></div>
         <div class="container">
             <header>
                 <div class="header-left">
@@ -106,7 +117,7 @@ def main():
         min_size=(800, 600),
         resizable=True,
         frameless=True,    # Start with standard frameless (Borderless)
-        easy_drag=False,   # Disable pywebview drag handler
+        easy_drag=False,   # Custom drag region requires easy_drag=False
         js_api=JsApi()
     )
     
