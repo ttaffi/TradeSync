@@ -137,7 +137,14 @@ Artifacts will be generated in `dist/`.
 
 ---
 
-## 📄 License
+## � Acknowledgments
+
+A huge thank you to **[pytr](https://github.com/nborrmann/pytr)** by **[nborrmann](https://github.com/nborrmann)**.
+ This application relies heavily on his incredible work reverse-engineering the Trade Republic API. Without `pytr`, TradeSync would not exist.
+
+---
+
+## �📄 License
 
 Distributed under the MIT License. See `LICENSE` for more information.
 
