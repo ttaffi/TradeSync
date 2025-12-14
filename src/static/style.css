@@ -152,6 +152,11 @@ header {
     color: #fff;
 }
 
+.status-badge.waiting {
+    background-color: #ffcc00;
+    color: #000;
+}
+
 .card {
     background-color: var(--card-bg);
     border-radius: 18px;

@@ -386,6 +386,7 @@
         }
 
         let hasError = false;
+        let isWaiting = false;
 
         function updateBadge(state) {
             statusBadge.className = 'status-badge'; // Reset
@@ -395,6 +396,9 @@
             } else if (state === 'error') {
                 statusBadge.textContent = 'Error';
                 statusBadge.classList.add('error');
+            } else if (state === 'waiting') {
+                statusBadge.textContent = 'Waiting';
+                statusBadge.classList.add('waiting');
             } else {
                 statusBadge.textContent = 'Ready';
                 statusBadge.classList.add('ready');
@@ -411,6 +415,7 @@
             updateBadge('running');
 
             hasError = false; // Reset error flag
+            isWaiting = false; // Reset waiting flag
 
             consoleOutput.innerHTML = ''; // Clear previous logs
             appendLog("Initializing connection...");
@@ -429,18 +434,76 @@
                 consoleInput.focus();
             };
 
+            let countdownInterval = null;
+
             ws.onmessage = (event) => {
-                const txt = event.data;
+                const rawData = event.data;
+
+                // Try Parsing as JSON Control Message
+                try {
+                    // We only care if it looks like JSON starts with {
+                    if (rawData.trim().startsWith('{')) {
+                        const msg = JSON.parse(rawData);
+                        if (msg.type === 'wait') {
+                            // HANDLE WAIT / COUNTDOWN
+                            const seconds = msg.seconds;
+                            // Change message format as requested
+                            // "⚠️ Rate limited. Re-try in x seconds"
+                            // appendLog handled by backend sending text message "⚠️ Rate limited..."
+
+                            updateBadge('waiting');
+                            isWaiting = true;
+                            hasError = false;
+
+                            let remaining = seconds;
+
+                            // Initialize button text immediately
+                            syncBtn.textContent = `Retry in ${remaining}s`;
+
+                            // Clear existing if any
+                            if (countdownInterval) clearInterval(countdownInterval);
+
+                            countdownInterval = setInterval(() => {
+                                remaining--;
+                                // Update Button Text instead of Badge
+                                syncBtn.textContent = `Retry in ${remaining}s`;
+
+                                if (remaining <= 0) {
+                                    clearInterval(countdownInterval);
+                                    countdownInterval = null;
+                                    appendLog("\n⚡️ Wait finished. You can sync again.");
+
+                                    // STOP AUTO RETRY. SWITCH TO MANUAL.
+                                    if (ws) ws.close();
+
+                                    // Reset UI to Ready
+                                    updateBadge('ready');
+                                    syncBtn.textContent = "Sync Now";
+                                    syncBtn.disabled = false;
+                                    isWaiting = false;
+                                }
+                            }, 1000);
+
+                            return; // handled
+                        }
+                    }
+                } catch (e) {
+                    // Not JSON, treat as text
+                }
+
+                // Normal Text Handling
+                const txt = rawData;
                 // Heuristic for error detection
                 if (txt && (txt.toLowerCase().includes('error') || txt.toLowerCase().includes('failed') || txt.toLowerCase().includes('exception'))) {
-                    // Ignore common non-fatal "errors" if any? 
-                    // For now, strict: any mention of error flags it.
                     hasError = true;
                 }
                 appendLog(txt);
             };
 
             ws.onclose = () => {
+                // If we are waiting for retry, DO NOT reset UI
+                if (isWaiting) return;
+
                 appendLog("Connection closed.");
                 syncBtn.disabled = false;
                 syncBtn.textContent = "Sync Now";

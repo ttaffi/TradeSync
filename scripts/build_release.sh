@@ -3,7 +3,8 @@
 # Builds the macOS app and creates a DMG installer.
 
 APP_NAME="TradeSync"
-DMG_NAME="TradeSync_Installer"
+VERSION=$(grep '__version__' src/__init__.py | cut -d '"' -f 2)
+DMG_NAME="TradeSync_v${VERSION}"
 VOL_NAME="TradeSync Installer"
 
 # Derived paths
@@ -44,6 +45,7 @@ if [ ! -d "$SOURCE_APP" ]; then
     exit 1
 fi
 
+
 # 3. Create DMG
 echo "📦 Creating DMG Installer..."
 
@@ -64,17 +66,6 @@ cp -R "$SOURCE_APP" "$MOUNT_POINT/"
 # Create Symlink to Applications
 ln -s /Applications "$MOUNT_POINT/Applications"
 
-# Setup Background & Icon (DISABLED)
-# mkdir "$MOUNT_POINT/.background"
-# cp "$BACKGROUND_IMG" "$MOUNT_POINT/.background/background.png"
-
-# Apply Volume Icon (DISABLED)
-# if [ -f "$ICON_FILE" ]; then
-#     cp "$ICON_FILE" "$MOUNT_POINT/.VolumeIcon.icns"
-#     SetFile -c icnC "$MOUNT_POINT/.VolumeIcon.icns"
-#     SetFile -a C "$MOUNT_POINT"
-# fi
-
 # Apply Finder Layout via AppleScript
 echo "   Applying Finder layout..."
 APP_SCRIPT="
@@ -86,10 +77,8 @@ APP_SCRIPT="
          set viewOptions to the icon view options of container window
          set arrangement of viewOptions to not arranged
          set icon size of viewOptions to 128
-         # set background picture of viewOptions to file \".background:background.png\"
          
          set the bounds of container window to {100, 100, 700, 500}
-         
          
          repeat 3 times
              set position of item \"$APP_NAME\" of container window to {160, 220}
@@ -123,15 +112,7 @@ echo "   Compressing to $FINAL_DMG..."
 if [ -f "$FINAL_DMG" ]; then rm "$FINAL_DMG"; fi
 hdiutil convert "$SPARSE_IMG" -format UDZO -imagekey zlib-level=9 -o "$FINAL_DMG"
 
-# Set DMG File Icon (DISABLED)
-# if [ -f "$ICON_FILE" ]; then
-#     echo "   Setting DMG file icon..."
-#     python3 "$SCRIPT_DIR/set_icon.py" "$ICON_FILE" "$FINAL_DMG"
-# fi
-
 # Cleanup
 rm -rf "$SPARSE_IMG"
-# Optional: keep build dir or remove it? Let's keep dist but remove build info if strictly "clean". 
-# But usually dist is enough. I removed build dir at start.
 
 echo "✅ Success! Release ready: $FINAL_DMG"

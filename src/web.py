@@ -1,6 +1,8 @@
 import asyncio
 import os
 import sys
+import re
+import json
 import pty
 import fcntl
 import struct
@@ -187,57 +189,119 @@ async def websocket_endpoint(websocket: WebSocket):
 
     async def read_stdout():
         nonlocal sent_phone, sent_pin
+        rate_limit_active = False
+        buffer = ""
+
+        async def process_line(line: str):
+            nonlocal sent_phone, sent_pin, rate_limit_active
+            
+            # --- 1. GLOBAL FILTERS ---
+            # Remove distracting debug error
+            if "DEBUG: EXCEPTION: name 'exit' is not defined" in line:
+                line = line.replace("DEBUG: EXCEPTION: name 'exit' is not defined", "")
+            
+            # If line became empty after filtering (and wasn't just a newline), we might skip it
+            # But we should preserve empty newlines for formatting if they were original.
+            # For this specific error, it's usually on its own line or appended.
+            
+            line_lower = line.lower()
+            suppress_output = False
+
+            # --- 2. RATE LIMIT DETECTION ---
+            if "too_many_requests" in line_lower and "nextattemptinseconds" in line_lower:
+                seconds = 300 # Fallback
+                try:
+                    match = re.search(r"['\"]nextAttemptInSeconds['\"]:\s*(\d+)", line)
+                    if match:
+                        seconds = int(match.group(1))
+                except Exception as e:
+                    logger.error(f"Failed to parse rate limit: {e}")
+                
+                logger.info(f"Rate Limit Detected: Waiting {seconds} seconds.")
+                
+                # Explicit Text Warning
+                await websocket.send_text(f"⚠️ Rate limited. Retry in {seconds} seconds.")
+                
+                # Control Command
+                await websocket.send_json({
+                    "type": "wait",
+                    "seconds": seconds
+                })
+                
+                suppress_output = True 
+                rate_limit_active = True
+
+            # --- 3. SUPPRESS PREDICTABLE FAILURE ---
+            if rate_limit_active and "failed to fetch transactions" in line_lower:
+                # This is the redundant failure message we want to hide
+                suppress_output = True
+                rate_limit_active = False # Reset
+
+            # --- 4. AUTO-LOGIN STATE RESET ---
+            if any(x in line_lower for x in ["retrying with fresh login", "credentials file not found", "login failed"]):
+                # Don't reset on the suppressed failure above, only on real login restart indicators
+                if not suppress_output: 
+                    logger.info("Auto-Login: Detected Retry/Failure. Resetting injection state.")
+                    sent_phone = False
+                    sent_pin = False
+
+            # --- 5. AUTO-LOGIN INJECTION ---
+            # Phone Prompt
+            if not sent_phone and auto_phone and ("phone number" in line_lower or "format +" in line_lower):
+                 logger.info("Auto-Login: Detected Phone Prompt.")
+                 await asyncio.sleep(0.5)
+                 os.write(master_fd, (auto_phone + "\n").encode())
+                 sent_phone = True
+
+            # PIN Prompt
+            # Check matching heuristics
+            is_pin_prompt = ("pin" in line_lower) and any(x in line_lower for x in ["enter your pin", "pin:", "pin "])
+            if not sent_pin and auto_pin and is_pin_prompt:
+                 logger.info("Auto-Login: Detected PIN Prompt.")
+                 await asyncio.sleep(0.5)
+                 os.write(master_fd, (auto_pin + "\n").encode())
+                 sent_pin = True
+
+            # --- 6. CENSORSHIP ---
+            if auto_pin and len(auto_pin) >= 1:
+                line = line.replace(auto_pin, "*" * len(auto_pin))
+
+            # --- 7. OUTPUT ---
+            if not suppress_output and line:
+                 await websocket.send_text(line)
+
         try:
             while True:
-                # Read from the master fd
-                # We use os.read directly because it's a file descriptor
-                # We need to run this in a thread executor because os.read is blocking
                 loop = asyncio.get_event_loop()
                 data = await loop.run_in_executor(None, os.read, master_fd, 1024)
-                
                 if not data:
                     break
-                    
-                # Decode bytes to string
-                text = data.decode('utf-8', errors='replace')
                 
-                # === AUTO-LOGIN LOGIC (PTY Injection) ===
-                if text:
-                    text_lower = text.lower()
-                    
-                    # 1. Check for Phone Number Prompt
-                    # Prompt: "Please enter your TradeRepublic phone number in the format +49..."
-                    if not sent_phone and auto_phone and ("phone number" in text_lower or "format +" in text_lower):
-                        logger.info("Auto-Login: Detected Phone Prompt. Injecting number...")
-                        # Short delay to simulate typing/allow buffer flush
-                        await asyncio.sleep(0.5) 
-                        os.write(master_fd, (auto_phone + "\n").encode())
-                        sent_phone = True
-                        
-                    # 2. Check for PIN Prompt
-                    # Prompt could be "Please enter your PIN:", "PIN:", or just "Enter PIN"
-                    # We check for "pin" if we haven't sent it yet.
-                    # To avoid false positives, we check matches like "enter your pin", "pin:", "pin "
-                    if not sent_pin and auto_pin and ("pin" in text_lower):
-                         # Additional heuristic: usually happens AFTER phone logic or standalone
-                         # We'll trust "pin" presence combined with typical prompt length or specific keywords
-                         if any(x in text_lower for x in ["enter your pin", "pin:", "pin "]):
-                            logger.info("Auto-Login: Detected PIN Prompt. Injecting PIN...")
-                            await asyncio.sleep(0.5)
-                            os.write(master_fd, (auto_pin + "\n").encode())
-                            sent_pin = True
+                text_chunk = data.decode('utf-8', errors='replace')
+                buffer += text_chunk
                 
-                # CENSOR PIN IN CONSOLE OUTPUT
-                # If the PTY echoes the PIN, we mask it before sending to frontend.
-                if auto_pin and len(auto_pin) >= 1:
-                    text = text.replace(auto_pin, "*" * len(auto_pin))
-                # ========================================
+                # Process complete lines
+                while '\n' in buffer:
+                    line, buffer = buffer.split('\n', 1)
+                    # Re-attach newline for accurate processing/printing (or handle implicit)
+                    # Use distinct marker for processing
+                    await process_line(line + '\n')
+                
+                # Check for blocking prompts in remaining buffer (no newline)
+                # Typical prompts: "Pin (Input is hidden):", "format +49...:", "Code:"
+                if buffer.strip().endswith(':') or "pin (input is hidden)" in buffer.lower():
+                    await process_line(buffer)
+                    buffer = "" # Consumed
+                
+                # Safety: Flush buffer if too big to prevent locking
+                if len(buffer) > 4096:
+                    await process_line(buffer)
+                    buffer = ""
 
-                await websocket.send_text(text)
         except OSError:
-            pass # Process ended
+            pass
         except Exception as e:
-            logger.error(f"Error reading stdout: {e}")
+            logger.error(f"Error in read_stdout: {e}")
         finally:
             await websocket.close()
 
