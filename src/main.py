@@ -115,11 +115,11 @@ def main() -> None:
                 return
 
             # --- Phase 3: Processing ---
-            processed_df = None
+            processed_rows = None
             added_count = 0
             
             with console.status("[bold magenta]Processing and Merging Data...[/bold magenta]", spinner="arc"):
-                processed_df, added_count = sync_logic.process_and_merge(new_export_path, master_content)
+                processed_rows, added_count = sync_logic.process_and_merge(new_export_path, master_content)
                 
             if added_count == 0:
                 console.print("[bold green]✔ Sync completed. No new transactions.[/bold green]")
@@ -129,7 +129,7 @@ def main() -> None:
             
             # Save merged
             merged_output_path = os.path.join(temp_dir, "merged_master.csv")
-            sync_logic.save_to_csv(processed_df, merged_output_path)
+            sync_logic.save_to_csv(processed_rows, merged_output_path)
 
             console.print(f"[bold green]✔ Added {added_count} new transactions![/bold green]")
 
@@ -195,7 +195,7 @@ def main() -> None:
             table.add_column("Value", style="bold")
             
             table.add_row("New Transactions", str(added_count))
-            table.add_row("Total Transactions", str(len(processed_df)))
+            table.add_row("Total Transactions", str(len(processed_rows)))
             table.add_row("Status", "[green]Success[/green]")
             
             console.print(table)

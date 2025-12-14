@@ -1,10 +1,9 @@
 import logging
 import io
 import os
-from typing import Optional, Tuple, TYPE_CHECKING
-
-if TYPE_CHECKING:
-    import pandas as pd
+import csv
+from datetime import datetime
+from typing import Optional, Tuple, List, Dict, Any
 
 from src.utils import generate_row_hash
 
@@ -12,34 +11,47 @@ logger = logging.getLogger(__name__)
 
 class SyncLogic:
     """
-    Handles data processing, deduplication, and merging.
+    Handles data processing, deduplication, and merging using native Python CSV/JSON.
     """
 
     def __init__(self):
         # Specifics for Italian locale CSV from pytr
         self.csv_sep = ';'
         self.csv_decimal = ','
-        self.encoding = 'utf-8' # or 'latin1' if needed, usually utf-8 for modern exports
-        self.date_col = 'Data' # Based on user description "Data" column
+        self.encoding = 'utf-8' 
+        self.date_col = 'Data' # Key column for sorting
 
-    def load_data(self, file_path_or_buffer) -> 'pd.DataFrame':
+    def load_data(self, file_path_or_buffer) -> List[Dict[str, str]]:
         """
-        Load CSV data into a Pandas DataFrame with correct locale settings.
+        Load CSV data into a list of dictionaries.
         """
-        import pandas as pd
         try:
-            df = pd.read_csv(
-                file_path_or_buffer, 
-                sep=self.csv_sep, 
-                decimal=self.csv_decimal,
-                encoding=self.encoding
-            )
-            return df
+            # Check if it's a file path or a buffer
+            if isinstance(file_path_or_buffer, str):
+                f = open(file_path_or_buffer, 'r', encoding=self.encoding, newline='')
+                should_close = True
+            else:
+                # Assume buffer (BytesIO or TextIOWrapper)
+                # If BytesIO, need to wrap in TextIOWrapper for csv module
+                if isinstance(file_path_or_buffer, io.BytesIO):
+                     f = io.TextIOWrapper(file_path_or_buffer, encoding=self.encoding, newline='')
+                else:
+                     f = file_path_or_buffer
+                should_close = False
+            
+            try:
+                reader = csv.DictReader(f, delimiter=self.csv_sep)
+                data = list(reader)
+                return data
+            finally:
+                if should_close:
+                    f.close()
+
         except Exception as e:
             logger.error(f"Failed to load CSV: {e}")
             raise
 
-    def process_and_merge(self, new_data_path: str, master_content: Optional[bytes] = None) -> Tuple['pd.DataFrame', int]:
+    def process_and_merge(self, new_data_path: str, master_content: Optional[bytes] = None) -> Tuple[List[Dict[str, Any]], int]:
         """
         Process the new export and merge it with the master dataset.
         
@@ -48,118 +60,139 @@ class SyncLogic:
             master_content (bytes, optional): Content of existing master file. None if clean start.
             
         Returns:
-            Tuple[pd.DataFrame, int]: The merged DataFrame and the number of new rows added.
+            Tuple[List[Dict], int]: The merged list of rows and the number of new rows added.
         """
-        import pandas as pd
         logger.info("Loading new export data...")
-        new_df = self.load_data(new_data_path)
+        new_rows = self.load_data(new_data_path)
         
+        master_rows = []
         if master_content:
             logger.info("Loading existing master data...")
-            master_df = self.load_data(io.BytesIO(master_content))
+            master_rows = self.load_data(io.BytesIO(master_content))
         else:
             logger.info("No existing master data found. Treating all new data as fresh.")
-            master_df = pd.DataFrame(columns=new_df.columns)
 
-        # Normalize DataFrames for consistent comparison
-        # 1. Align Columns
-        if not master_df.empty:
-            # Ensure master has same columns as new (add missing as None, drop extras)
-            # This ensures we are comparing apples to apples
-            missing_in_master = set(new_df.columns) - set(master_df.columns)
-            for c in missing_in_master:
-                master_df[c] = None
+        # 2. Normalization Function
+        def normalize_row(row: Dict[str, str]) -> Dict[str, Any]:
+            norm = row.copy()
+            # String strip
+            for k, v in norm.items():
+                if isinstance(v, str):
+                    norm[k] = v.strip()
             
-            # Reorder master to match new_df
-            master_df = master_df[new_df.columns]
-        
-        # 2. Type Normalization (Strict)
-        # function to normalize a df in place
-        def normalize_df(df):
-            # DateTime
-            if self.date_col in df.columns:
-                try:
-                    df[self.date_col] = pd.to_datetime(df[self.date_col], dayfirst=True)
-                except Exception as e:
-                    logger.warning(f"Date normalization failed: {e}")
-            
-            # Strings: Strip whitespace
-            df_obj = df.select_dtypes(['object'])
-            df[df_obj.columns] = df_obj.apply(lambda x: x.str.strip())
-            
-            # Floats (Italian locale handling if still strings)
-            # Try to convert known numeric columns like 'Importo', 'Saldo'
+            # Float Normalization (Italian Locale)
+            # Try to convert known numeric columns to standard float strings or keep as is?
+            # Actually, keeping them as strings is fine for storage, but for "deduplication" 
+            # we need consistency. 
+            # Let's clean the string representation: "1.000,00" -> "1000.00"
             for col in ['Importo', 'Saldo', 'Amount']:
-                if col in df.columns and df[col].dtype == 'object':
-                    try:
-                        # Replace ',' with '.' and convert to float
-                        df[col] = df[col].astype(str).str.replace('.', '', regex=False).str.replace(',', '.', regex=False).replace('nan', '0')
-                        df[col] = pd.to_numeric(df[col])
-                    except:
-                        pass
-            return df
+                if col in norm and norm[col]:
+                    val = norm[col]
+                    if isinstance(val, str):
+                        # Remove dots (thousands), replace comma with dot
+                        clean_val = val.replace('.', '').replace(',', '.')
+                        # Just update the string in place to be "standard numeric"
+                        try:
+                            # Verify if it floats
+                            float(clean_val)
+                            norm[col] = clean_val
+                        except ValueError:
+                            pass # Not a number, leave as is
+            return norm
 
-        new_df = normalize_df(new_df)
-        if not master_df.empty:
-            master_df = normalize_df(master_df)
+        # Normalize specific columns if needed (mostly for hashing consistency)
+        normalized_new = [normalize_row(r) for r in new_rows]
+        normalized_master = [normalize_row(r) for r in master_rows]
 
-        # 3. Native Deduplication
-        # We concatenate Master + New
-        # Then drop duplicates, keeping the 'first' occurrence (which is Master's if it exists)
-        # This implicitly handles the intersection.
+        # 3. Deduplication
+        # Strategy: Build a set of hashes from MASTER.
+        # Iterate NEW. If hash not in set, add to MASTER.
         
-        initial_len = len(master_df)
+        # NOTE: This assumes Master is the source of truth.
+        # If new export has "updated" data for same row, this logic ignores it (keeps master).
+        # This matches "drop_duplicates(keep='first')" behavior if we prepend master.
         
-        # Use a "combined" fallback if master is empty
-        if master_df.empty:
-             merged_df = new_df.drop_duplicates()
-             added_count = len(merged_df)
-        else:
-            # Concat
-            combined_df = pd.concat([master_df, new_df], ignore_index=True)
+        existing_hashes = set()
+        for row in normalized_master:
+            h = generate_row_hash(row)
+            existing_hashes.add(h)
             
-            # Drop Duplicates
-            # subset=None means use all columns
-            merged_df = combined_df.drop_duplicates(keep='first')
-            
-            final_len = len(merged_df)
-            added_count = final_len - initial_len
-
+        initial_count = len(normalized_master)
+        
+        merged_rows = list(normalized_master) # Start with master
+        added_count = 0
+        
+        for row in normalized_new:
+            h = generate_row_hash(row)
+            if h not in existing_hashes:
+                merged_rows.append(row)
+                existing_hashes.add(h)
+                added_count += 1
+                
         if added_count > 0:
-            logger.info(f"Merged {added_count} new unique transactions via Pandas Deduplication.")
+            logger.info(f"Merged {added_count} new unique transactions.")
         else:
             logger.info("No new unique transactions found.")
             
-        # 4. Final Formatting for Export (Sort by Date)
-        if self.date_col in merged_df.columns:
+        # 4. Sorting
+        if merged_rows and self.date_col in merged_rows[0]:
             try:
-                # Ensure it's datetime for sorting
-                if not pd.api.types.is_datetime64_any_dtype(merged_df[self.date_col]):
-                     merged_df[self.date_col] = pd.to_datetime(merged_df[self.date_col], dayfirst=True)
-                     
-                merged_df = merged_df.sort_values(by=self.date_col, ascending=False)
-                
-                # Convert back to native string format for CSV (optional, but good for CSV 'pretty' look)
-                # Or just leave as objects, to_csv handles it. 
-                # But to maintain input format "YYYY-MM-DD HH:MM:SS" we might want to format.
-                # Let's verify what the original format was. 
-                # User liked "YYYY-MM-DD HH:MM:SS".
-                # merged_df[self.date_col] = merged_df[self.date_col].dt.strftime('%Y-%m-%d %H:%M:%S')
-                pass 
+                def parse_date(row):
+                    d_str = row.get(self.date_col, "")
+                    # Try explicit formats
+                    # Input is usually YYYY-MM-DD or DD.MM.YYYY
+                    if not d_str: return datetime.min
+                    
+                    formats = ['%Y-%m-%d', '%d.%m.%Y', '%Y-%m-%d %H:%M:%S']
+                    for fmt in formats:
+                        try:
+                            return datetime.strptime(d_str, fmt)
+                        except ValueError:
+                            continue
+                    return datetime.min
+
+                merged_rows.sort(key=parse_date, reverse=True)
             except Exception as e:
                 logger.warning(f"Sorting failed: {e}")
 
-        return merged_df, added_count
+        return merged_rows, added_count
     
-    def save_to_csv(self, df: 'pd.DataFrame', path: str):
-         # If existing file used specific formatting, we should try to respect it.
-         # But preventing future dupes requires STANDARD output.
-         # We force standard numeric/date formats.
-         
-         import pandas as pd
-         # Format Date col as string if it is datetime
-         save_df = df.copy()
-         if self.date_col in save_df.columns and pd.api.types.is_datetime64_any_dtype(save_df[self.date_col]):
-             save_df[self.date_col] = save_df[self.date_col].dt.strftime('%Y-%m-%d %H:%M:%S')
+    def save_to_csv(self, rows: List[Dict[str, Any]], path: str):
+         if not rows:
+             logger.warning("No rows to save.")
+             return
 
-         save_df.to_csv(path, sep=self.csv_sep, decimal=self.csv_decimal, index=False, encoding=self.encoding)
+         try:
+             # Extract headers from the first row (or union of all keys if sparse?)
+             # Usually CSVs have uniform keys. Use first row logic or master keys.
+             fieldnames = list(rows[0].keys())
+             
+             with open(path, 'w', encoding=self.encoding, newline='') as f:
+                 writer = csv.DictWriter(f, fieldnames=fieldnames, delimiter=self.csv_sep)
+                 writer.writeheader()
+                 
+                 # Formatting hook before write?
+                 # If we normalized floats to "1000.00" (dot decimal), 
+                 # but we want output in Italian "1000,00" (comma decimal)?
+                 # The user settings define self.csv_decimal = ','
+                 # If we changed them in normalization, we might want to revert for display/consistency?
+                 # Or we just save the normalized "standard" version?
+                 # The previous Pandas implementation respected `decimal=','` on SAVE.
+                 # So pandas converted floats to "1,00" string on write.
+                 # We must do the same manually.
+                 
+                 for row in rows:
+                     row_to_write = row.copy()
+                     # Re-localize floats
+                     for col in ['Importo', 'Saldo', 'Amount']:
+                         if col in row_to_write:
+                             val = row_to_write[col]
+                             if isinstance(val, str) and '.' in val and ',' not in val:
+                                 # It looks like a standard float string "1234.56"
+                                 # Convert to "1234,56"
+                                 row_to_write[col] = val.replace('.', ',')
+                     writer.writerow(row_to_write)
+                     
+         except Exception as e:
+             logger.error(f"Failed to save CSV: {e}")
+             raise
