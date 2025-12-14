@@ -50,7 +50,7 @@ By automating the retrieval (`pytr`) and synchronization (`Google Drive API`) of
 ### Installation
 
 1.  Go to the [Releases](https://github.com/ttaffi/TradeSync/releases) page.
-2.  Download the latest `TradeSync.dmg`.
+2.  Download the latest `TradeSync_version.dmg`.
 3.  Open the DMG and drag **TradeSync.app** to your `Applications` folder.
 
 ### Usage
@@ -58,7 +58,7 @@ By automating the retrieval (`pytr`) and synchronization (`Google Drive API`) of
 1.  Launch **TradeSync** from your Applications.
 2.  The first time you run it, you'll be guided through the [Configuration](#-configuration) setup.
 3.  Once configured, simply click **Sync Now**.
-    -   If 2FA is required, the app will prompt you for the code sent to your phone.
+    -   When 2FA is required, the app will prompt you for the code sent to your phone.
     -   Sit back and wait for the "Sync Complete" notification!
 
 ---
@@ -73,13 +73,16 @@ You need to generate a `credentials.json` file to allow TradeSync to access your
 1.  Go to the [Google Cloud Console](https://console.cloud.google.com/).
 2.  Create a new Project (e.g., "TradeSync Personal").
 3.  Enable the **Google Drive API** for this project.
+- Go to "APIs & Services" > **Library**.
+    - Search for "Google Drive API".
+    - Click **Enable**.
 4.  Go to **APIs & Services > OAuth consent screen**.
     -   User Type: **External** (unless you have a Workspace org).
     -   Fill in required fields (AppName, email).
-    -   **Test Users**: Add your own Google email address.
+    -   **Test Users**: IMPORTANT! Click "Add Users" and add your own Google email address. Without this, the login will fail.
 5.  Go to **Credentials > Create Credentials > OAuth client ID**.
     -   Application type: **Desktop app**.
-6.  Download the JSON file and rename it to `credentials.json`.
+6.  Download the JSON file.
 7.  **Import this file** when prompted by TradeSync settings.
 
 ### 2. Google Drive Folder
@@ -137,19 +140,22 @@ Artifacts will be generated in `dist/`.
 
 ---
 
-## � Acknowledgments
+## 🔒 Privacy & Security
 
-A huge thank you to **[pytr](https://github.com/nborrmann/pytr)** by **[nborrmann](https://github.com/nborrmann)**.
- This application relies heavily on his incredible work reverse-engineering the Trade Republic API. Without `pytr`, TradeSync would not exist.
+-   **Local Execution:** This application runs entirely on your device. Your Trade Republic credentials and Google tokens are stored locally.
+-   **Direct Connection:** Data flows directly from Trade Republic to your computer, and then to your Google Drive. There is no "middleman" server.
+-   **Open Source:** The code is available here for inspection.
+
+## 🤝 Credits
+
+This project makes use of the excellent [pytr](https://github.com/marcdw/pytr) library to handle the communication with Trade Republic's API. A huge thanks to the maintainers of that project.
+
+## ⚠️ Disclaimer
+
+This is an unofficial tool and is not affiliated with, endorsed by, or connected to Trade Republic Bank GmbH or Google LLC. Use it at your own risk. The developer is not responsible for any financial decisions or data loss.
 
 ---
 
 ## �📄 License
 
 Distributed under the MIT License. See `LICENSE` for more information.
-
----
-
-<div align="center">
-  <p><i>Note: This is an unofficial tool and is not affiliated with Trade Republic Bank GmbH. Use at your own risk.</i></p>
-</div>
