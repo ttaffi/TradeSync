@@ -20,21 +20,22 @@ It handles duplicates smartly, creates backups, and provides a simple user inter
 ## 🚀 Installation & Usage
 
 ### 1. Download the App
-Go to the `dist` folder and unzip `TradeSync.app.zip` (if available) or use the distributed executable.
+Download the latest release.
 *(Note: If you are building from source, see the Developer section below).*
 
 ### 2. Configuration
-The first time you run **TradeSync**, you will need to set up your configuration. All config files are stored in `~/Library/Application Support/TradeSync` (on macOS).
+The first time you run **TradeSync**, you will need to set up your configuration.
 
 You need:
 1.  **Google OAuth Client ID**: A `credentials.json` file from Google Cloud Console (OAuth 2.0 Client ID for Desktop).
 2.  **Trade Republic Config**: Your phone number and PIN.
+3.  **Google Drive folde ID**: The ID of the Google Drive folder where you want to save yoour exported .csv file.
 
 ### 3. Running the App
-Double-click **TradeSync.app**.
+Open **TradeSync.app**.
 A window will open showing the TradeSync interface. Click **"Sync Now"** to start.
 
-- If prompted for 2FA (Trade Republic), check your phone and enter the code in the app.
+- When prompted for 2FA (Trade Republic), check your phone and enter the code in the app, press enter without writing the code if you want to receive the code via SMS.
 - You will receive a macOS notification when the sync is complete.
 
 ---
